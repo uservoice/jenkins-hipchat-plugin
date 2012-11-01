@@ -13,7 +13,10 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
 import java.util.logging.Logger;
+import java.io.IOException;
 
 import org.apache.commons.lang.StringUtils;
 
@@ -69,6 +72,10 @@ public class ActiveNotifier implements FineGrainedNotifier {
          return null;
       }
       ChangeLogSet changeSet = r.getChangeSet();
+      if(changeSet.isEmptySet()) {
+         logger.info("Empty change...");
+         return null;
+      }
       List<Entry> entries = new LinkedList<Entry>();
       Set<AffectedFile> files = new HashSet<AffectedFile>();
       for(Object o : changeSet.getItems()) {
@@ -76,10 +83,6 @@ public class ActiveNotifier implements FineGrainedNotifier {
          logger.info("Entry " + o);
          entries.add(entry);
          files.addAll(entry.getAffectedFiles());
-      }
-      if(entries.isEmpty()) {
-         logger.info("Empty change...");
-         return null;
       }
       MessageBuilder message = new MessageBuilder(notifier, r);
       message.append("Started by changes from ");
@@ -163,7 +166,36 @@ public class ActiveNotifier implements FineGrainedNotifier {
 
       public MessageBuilder appendOpenLink() {
          String url = notifier.getJenkinsUrl() + build.getUrl();
-         message.append(" (<a href='").append(url).append("'>Open</a>)");
+         this.appendCommitLink();
+         message.append(" (<a href='").append(url).append("console'>Console</a>)");
+         return this;
+      }
+
+      public MessageBuilder appendCommitLink() {
+         try {
+             List logs = build.getLog(100); // get last 100 lines of currentBuildLog
+             Pattern pattern = Pattern.compile("^Commencing build of Revision (\\b\\w{40}\\b) \\(\\w+/(.+)\\)$");
+             String commitId = new String();
+             String commitBranch = new String();
+             for (Object o : logs) {
+                 String s = (String)o;
+                 Matcher matcher = pattern.matcher(s);
+                 if (matcher.find()) {
+                     commitId = matcher.group(1);
+                     commitBranch = matcher.group(2);
+                     break;
+                 }
+             }
+             if (!commitId.isEmpty()) { // otherwise we have no idea
+                String githubUrl = "https://github.com/uservoice/uservoice/";
+                message.append(" (<a href='").append(githubUrl).append("compare/").append(commitBranch).append("'>")
+                        .append(commitBranch).append("</a>)");
+                message.append(" (<a href='").append(githubUrl).append("commit/").append(commitId).append("'>")
+                        .append(commitId.substring(0, 6)).append("</a>)");
+             }
+         } catch (IOException e) {
+             logger.info("Could not read logs");
+         }
          return this;
       }
 
@@ -177,13 +209,9 @@ public class ActiveNotifier implements FineGrainedNotifier {
             }
             String commitAuthor = entries.get((entries.size() - 1)).getAuthor().getDisplayName();
             String commitMsg = entries.get((entries.size() - 1)).getMsgEscaped();
-            String commitId = entries.get((entries.size() - 1)).getCommitId();
             message.append(commitAuthor);
             message.append(": ");
             message.append(commitMsg);
-            message.append(" (");
-            message.append(commitId.substring(0, 6));
-            message.append(")");
          }
          return this;
       }
