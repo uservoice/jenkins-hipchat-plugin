@@ -158,15 +158,14 @@ public class ActiveNotifier implements FineGrainedNotifier {
 
       private MessageBuilder startMessage() {
          message.append(build.getProject().getDisplayName());
-         message.append(" - ");
-         message.append(build.getDisplayName());
+         message.append(" -");
+         this.appendCommitLink();
          message.append(" ");
          return this;
       }
 
       public MessageBuilder appendOpenLink() {
          String url = notifier.getJenkinsUrl() + build.getUrl();
-         this.appendCommitLink();
          message.append(" (<a href='").append(url).append("console'>Console</a>)");
          return this;
       }
@@ -188,10 +187,10 @@ public class ActiveNotifier implements FineGrainedNotifier {
              }
              if (!commitId.isEmpty()) { // otherwise we have no idea
                 String githubUrl = "https://github.com/uservoice/uservoice/";
-                message.append(" (<a href='").append(githubUrl).append("compare/").append(commitBranch).append("'>")
-                        .append(commitBranch).append("</a>)");
-                message.append(" (<a href='").append(githubUrl).append("commit/").append(commitId).append("'>")
-                        .append(commitId.substring(0, 6)).append("</a>)");
+                message.append(" <a href='").append(githubUrl).append("compare/").append(commitBranch).append("'>")
+                        .append(commitBranch).append("</a>/");
+                message.append("<a href='").append(githubUrl).append("commit/").append(commitId).append("'>")
+                        .append(commitId.substring(0, 6)).append("</a>");
              }
          } catch (IOException e) {
              logger.info("Could not read logs");
