@@ -81,13 +81,9 @@ public class ActiveNotifier implements FineGrainedNotifier {
          logger.info("Empty change...");
          return null;
       }
-      Set<String> authors = new HashSet<String>();
-      for(Entry entry : entries) {
-         authors.add(entry.getAuthor().getDisplayName());
-      }
       MessageBuilder message = new MessageBuilder(notifier, r);
       message.append("Started by changes from ");
-      message.append(StringUtils.join(authors, ", "));
+      message.appendCommitInfo();
       message.append(" (");
       message.append(files.size());
       message.append(" file(s) changed)");
@@ -110,6 +106,9 @@ public class ActiveNotifier implements FineGrainedNotifier {
    String getBuildStatusMessage(AbstractBuild r) {
       MessageBuilder message = new MessageBuilder(notifier, r);
       message.appendStatusMessage();
+      message.append(" for ");
+      message.appendCommitInfo();
+      message.append(" - ");
       message.appendDuration();
       return message.appendOpenLink().toString();
    }
@@ -165,6 +164,27 @@ public class ActiveNotifier implements FineGrainedNotifier {
       public MessageBuilder appendOpenLink() {
          String url = notifier.getJenkinsUrl() + build.getUrl();
          message.append(" (<a href='").append(url).append("'>Open</a>)");
+         return this;
+      }
+
+      public MessageBuilder appendCommitInfo() {
+         ChangeLogSet changeSet = build.getChangeSet();
+         if ( !changeSet.isEmptySet() ) {
+            List<Entry> entries = new LinkedList<Entry>();
+            for(Object o : changeSet.getItems()) {
+               Entry entry = (Entry)o;
+               entries.add(entry);
+            }
+            String commitAuthor = entries.get((entries.size() - 1)).getAuthor().getDisplayName();
+            String commitMsg = entries.get((entries.size() - 1)).getMsgEscaped();
+            String commitId = entries.get((entries.size() - 1)).getCommitId();
+            message.append(commitAuthor);
+            message.append(": ");
+            message.append(commitMsg);
+            message.append(" (");
+            message.append(commitId.substring(0, 6));
+            message.append(")");
+         }
          return this;
       }
 
